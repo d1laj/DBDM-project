@@ -17,19 +17,19 @@ open Data
 %nonassoc PARO PARF
 
 %start main        
-%type <Data.data> main 
+%type <Data.t_data> main 
 
 %%
     
 main:
-    SOURCE schema TARGET schema MAPPING tgds EOF        { Data(Sources(&2), Targets(&4), Mappings(&6)) }
+    SOURCE schema TARGET schema MAPPING tgds EOF        { STM(Sources $2, Targets $4, Mappings $6) }
     
 schema:
     relation schema                                     { $1 :: $2 }
     | relation                                          { [$1] }
     
 relation:
-    NAME PARO atts PARF                                 { Relation($1, Atts($2)) }
+    NAME PARO atts PARF                                 { Relation($1, $3) }
     
 atts:
     NAME COMMA atts                                     { $1 :: $3 }
@@ -37,25 +37,25 @@ atts:
 
 tgds:
     tgd                                                 { [$1] }
-    | tgds tgd                                          { $2 :: $1 }
+    | tgd tgds                                          { $1 :: $2 }
     
 tgd:
-    query ARROW query DOT                               { Tgd(Query($1), Query($3)) }
+    query ARROW query DOT                               { Tgd($1, $3) }
     
 query:
     atom COMMA query                                    { $1 :: $3 }
     | atom                                              { [$1] }
     
 atom:
-    NAME PARO args PARF                                 { Atom($1, Args($3)) }
+    NAME PARO args PARF                                 { Atom($1, $3) }
     
 args:
     value COMMA args                                    { $1 :: $3 }
     | value                                             { [$1] }
     
 value:
-    variable                                            { $1 }
-    | CONST                                             { $1 }
+    variable                                            { Val($1) }
+    | CONST                                             { Const $1 }
     
 variable:
     DOLLAR NAME                                         { Variable($2) }
