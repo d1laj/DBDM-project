@@ -47,7 +47,7 @@ query:
     | atom                                              { [$1] }
     
 atom:
-    NAME PARO args PARF                                 { Atom($1, $3) }
+    NAME PARO args PARF                                 { Atom($1, $3, "") }
     
 args:
     value COMMA args                                    { $1 :: $3 }

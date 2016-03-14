@@ -1,5 +1,3 @@
-
-
 (* Type declaration *)
 
 type t_label=
@@ -12,10 +10,10 @@ type t_value=
     | Skolem of int * t_label * (t_label list)
   
 type t_atom=
-    Atom of string * (t_value list)
+    Atom of string * (t_value list) * string
     
 type t_tgd=
-    Tgd of (t_atom list) * (t_atom list)
+    Tgd of (t_atom list) * (t_atom list) 
     
 type t_mappings=
     Mappings of t_tgd list
@@ -37,7 +35,7 @@ type t_data=
 let check data= match data with
     | Sources s, Targets t, Mappings m ->
         let check_relation rel atom= match rel, atom with
-            |Relation(name1, att1), Atom(name2, att2) when name1 = name2 && List.length att1 = List.length att2 -> true
+            |Relation(name1, att1), Atom(name2, att2, _) when name1 = name2 && List.length att1 = List.length att2 -> true
             | _ -> false
         in
         let rec query_check r q=
@@ -110,7 +108,8 @@ let print_data data=
     in
     let print_atom x=
         match x with
-        | Atom (name, values) -> Printf.printf "%s(" name; print_val values; Printf.printf ")";
+        | Atom (name, values, s) when s = "" -> Printf.printf "%s(" name; print_val values; Printf.printf ")";
+        | Atom (name, values, s)-> Printf.printf "%s(" name; print_val values; Printf.printf ")[%s]" s;
     in
     let rec print_atom_list l=
         match l with
