@@ -8,8 +8,10 @@ forGrant(Grant, Project)
 TARGET
 works(Person, Project)
 area(Project, Field)
+tarea(Field, Teacher)
 
 MAPPING
 hasjob($i, $f) -> works($i, $p), area($p, $f).
 teaches($i, $c), inField($c, $f) -> works($i, $p), area($p, $f).
+teaches($i, $c), inField($c, $f), teaches($j, $c) -> tarea($f, $i), tarea($f, $j).
 get($i, $g), forGrant($g, $p) -> works($i, $p).

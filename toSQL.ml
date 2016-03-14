@@ -1,7 +1,7 @@
 open Data
 
 type t_map_couples=
-    | R of string * ((string * string * string * int) list) (* var name, relation alias, relation name attribute name, attribute index *)
+    | R of string * ((string * string * string * int) list) (* var name, relation alias, relation name, attribute name, attribute index *)
 
 type t_map=
     t_map_couples list
@@ -97,15 +97,82 @@ let rec rename map q=
     | [] -> []
     | Atom(name, att, s) :: tail -> Atom(name, rename_att att, s) :: rename map tail
 
+let rec output tgd t map outchan=
+    let compute_from q1 map=
+        let rec aux q=
+            match q with
+            | [] -> Printf.fprintf outchan "\n"
+            | [Atom(name, att, s)] -> Printf.fprintf outchan "%s AS %s\n" name s
+            | Atom(name, att, s) :: r -> Printf.fprintf outchan "%s AS %s, " name s; aux r
+        in
+        Printf.fprintf outchan "FROM "; aux q1
+    in
+    let compute_where map=
+        let auxtiers a b=
+            match a, b with
+            | (a1, n1, at1, i1), (a2, n2, at2, i2) -> Printf.fprintf outchan " AND %s.%s = %s.%s" a1 at1 a2 at2
+        in
+        let rec auxbis l=
+            match l with
+            | [] -> ()
+            | [x] -> ()
+            | a :: b :: q -> auxtiers a b; auxbis (b::q)
+        in
+        let rec aux m=
+            match m with
+            | [] -> ()
+            | R(s, l) :: q when List.length l > 1 -> auxbis l; aux q
+            | R(s, l) :: q -> aux q
+        in
+        Printf.fprintf outchan "WHERE 1=1"; aux map; Printf.fprintf outchan ";\n\n"
+    in
+    let compute_insert t atom=
+        let rec aux name t =
+            match t with
+            |[] -> ()
+            |Relation(n, att) :: q when n = name ->  Printf.fprintf outchan "INSERT INTO %s(%s)\n" name (String.concat ", " att)
+            | a :: q -> aux name q
+        in
+        match atom with
+        | Atom(name, att, s) -> aux name t 
+    in
+    let compute_select atom=
+        let rec print_label l=
+            match l with
+            | [] -> ()
+            | [Variable x] -> failwith "impossible case"
+            | [Label x] -> Printf.fprintf outchan "%s" x
+            | (Variable x) ::q -> failwith "impossible case"
+            | (Label x) :: q -> Printf.fprintf outchan "%s || ',' || " x; print_label q
+        in 
+        let rec aux att=
+            match att with
+            | [] -> ()
+            | Val(Variable(x)) :: q -> failwith "impossible case"
+            | [Const i] -> Printf.fprintf outchan "%d\n" i
+            | [Val(Label(x))] -> Printf.fprintf outchan "%s\n" x
+            | [Skolem(i, Label(v), l)] -> Printf.fprintf outchan "'f[m%d, %s](' || " i v; print_label l; Printf.fprintf outchan " || ')'\n"
+            | [Skolem(i, Variable(v), l)] -> Printf.fprintf outchan "'f[m%d, %s](' || " i v; print_label l; Printf.fprintf outchan " || ')'\n"
+            | Const(i) :: q -> Printf.fprintf outchan "%d, " i; aux q
+            | Val(Label(x)) :: q -> Printf.fprintf outchan "%s, " x; aux q
+            | Skolem(i, Label(v), l) :: q -> Printf.fprintf outchan "'f[m%d, %s](' || " i v; print_label l; Printf.fprintf outchan " || ')', "; aux q
+            | Skolem(i, Variable(v), l) :: q -> Printf.fprintf outchan "'f[m%d, %s](' || " i v; print_label l; Printf.fprintf outchan " || ')', "; aux q
+        in
+        match atom with
+        | Atom(name, att, s) -> Printf.fprintf outchan "SELECT "; aux att
+    in
+    match tgd with
+    | Tgd(_, []) -> ()
+    | Tgd(q1, atom :: q) -> compute_insert t atom; compute_select atom; compute_from q1 map; compute_where map; output (Tgd(q1,q)) t map outchan
      
-let second_pass data=
+let second_pass data outchan=
     let rec aux s t tgds=
         match tgds with
         | [] -> []
         | Tgd(q1, q2):: tail -> 
             let map = construct_map s [] q1 in
             let tgd = Tgd(rename map q1, rename map q2) in
-            (*output tgd map;*) tgd :: aux s t tail
+            output tgd t map outchan; tgd :: aux s t tail
     in
     match data with
     | STM ( Sources s, Targets t, Mappings tgds) ->  STM ( Sources s, Targets t,  Mappings (aux s t tgds))
